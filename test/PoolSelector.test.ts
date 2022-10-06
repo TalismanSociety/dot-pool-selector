@@ -1,10 +1,20 @@
 const { chai, expect } = require('chai');
-const { ApiPromise, WsProvider} = require("@polkadot/api");
+import { ApiPromise, WsProvider } from "@polkadot/api";
+import PoolSelector from "../src/PoolSelector";
 
 describe("ValidatorSelector functionality", () => {
 
-    before(async() => {
+    let poolSelector: PoolSelector;
+    let api: ApiPromise;
+    const minStake = 100000;
+    const minSpots = 100;
+    const numberOfPools = 2;
+    let pools;
 
+    before(async() => {
+        api = await ApiPromise.create({ provider: new WsProvider("wss://kusama.api.onfinality.io/ws?apikey=09f0165a-7632-408b-ba81-08f964b607f7") });
+        poolSelector = new PoolSelector(minStake, minSpots, numberOfPools, api);
+        pools = await poolSelector.getPoolsMeetingCriteria();
     });
 
     it("should only get pools where the root is verified", async() => {
