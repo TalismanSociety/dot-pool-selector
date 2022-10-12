@@ -1,4 +1,5 @@
 import { ApiPromise } from "@polkadot/api";
+const ValidatorSelector = require("dot-validator-selector/util/ValidatorSelector.js");
 
 type MatchingPool = {
     poolAccountId: String,
@@ -8,12 +9,21 @@ type MatchingPool = {
 
 export default class PoolSelector {
 
+    // const baseInfo = useCallMulti([
+    //     [api.query.nominationPools.bondedPools, poolId],
+    //     [api.query.nominationPools.metadata, poolId],
+    //     [api.query.nominationPools.rewardPools, poolId],
+    //     [api.query.staking.nominators, accounts.stashId],
+    //     [api.query.system.account, accounts.rewardId]
+    // ], OPT_MULTI);
+
     minStake: Number;
     minSpots: Number;
     numberOfPools: Number;
     api: ApiPromise;
-    maxMembers: Number;
+    maxMembers: Number = 0;
     era: Number;
+    validatorSelector: any;
 
     /*
     * @param minStake - the desired minimum amount of stake that the root account should hold
@@ -27,7 +37,7 @@ export default class PoolSelector {
         minSpots: Number,
         numberOfPools: Number,
         minNumberOfValidators: Number,
-        era: Number,
+        era: Number = 0,
         api: ApiPromise
     ) {
         this.minStake = minStake;
@@ -35,12 +45,15 @@ export default class PoolSelector {
         this.numberOfPools = numberOfPools;
         this.era = era;
         this.api = api;
+        this.validatorSelector = new ValidatorSelector(api);
     }
 
-    async init() {
-        // TODO set era if set to zero else use the era inputted via the constructor
-        if (this.maxMembers == undefined) {
+    private async init() {
+        if (this.maxMembers == 0) {
             this.maxMembers = await this.api.query.nominationPools.maxPoolMembersPerPool();
+        }
+        if(this.era == 0) {
+            this.era = await this.api.query.staking.activeEra();
         }
     }
 

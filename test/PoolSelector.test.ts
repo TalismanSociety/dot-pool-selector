@@ -1,6 +1,7 @@
 const { chai, expect } = require('chai');
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import PoolSelector from "../src/PoolSelector";
+const ValidatorSelector = require("dot-validator-selector/util/ValidatorSelector.js");
 
 describe("ValidatorSelector functionality", () => {
 
@@ -8,6 +9,7 @@ describe("ValidatorSelector functionality", () => {
     let api: ApiPromise;
     let era: Number;
     let pools;
+    let validatorSelector;
     const minStake = 100000;
     const minSpots = 100;
     const minValidators = 12;
@@ -18,6 +20,7 @@ describe("ValidatorSelector functionality", () => {
         poolSelector = new PoolSelector(minStake, minSpots, minValidators, numberOfPools, 0, api);
         pools = await poolSelector.getPoolsMeetingCriteria();
         era = await this.api.query.staking.activeEra();
+        validatorSelector = new ValidatorSelector(api);
     });
 
     it("should only get pools where the root is verified", async() => {
@@ -45,8 +48,11 @@ describe("ValidatorSelector functionality", () => {
     });
 
     it("should exclude a pool with validators that don't meet the requirements", async() => {
-        // TODO going to need to import the dot-validator-selector and possible tweak it
         const nominatorsSelectedByPool = await api.query.staking.nominators(pools[0].accountId);
+        for(let n of nominatorsSelectedByPool) {
+            const meetsCriteria = await validatorSelector.getMeetsCriteriaByAccountId(n);
+            expect(meetsCriteria, "Validator does not meet the criteria");
+        }
     });
 
     it("should only get pools that are in an open state", async() => {
