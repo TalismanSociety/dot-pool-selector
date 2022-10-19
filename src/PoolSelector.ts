@@ -1,9 +1,10 @@
+import '@polkadot/api-augment';
 import { ApiPromise } from "@polkadot/api";
 
 type MatchingPool = {
     poolAccountId: String,
     rootAccountId: String,
-    poolNumber: Number
+    poolId: Number
 }
 
 export default class PoolSelector {
@@ -46,10 +47,12 @@ export default class PoolSelector {
 
     private async init() {
         if (this.maxMembers == 0) {
-            this.maxMembers = parseInt((await this.api.query.nominationPools.maxPoolMembersPerPool()).toString());
+            const max = await this.api.query.nominationPools.maxPoolMembersPerPool();
+            this.maxMembers = parseInt(max.toString());
         }
         if(this.era == 0) {
-            this.era = parseInt((await this.api.query.staking.activeEra()).toString());
+            const { index } = JSON.parse((await this.api.query.staking.activeEra()).toString());
+            this.era = index;
         }
     }
 
@@ -61,8 +64,8 @@ export default class PoolSelector {
     async getMeetsCriteriaByPoolAccountId(poolAccountId: String): Promise<boolean> {
         await this.init();
         const poolInfo = await this.api.query.nominationPools.poolMembers(poolAccountId);
-        const poolId = poolInfo.toJSON().poolId;
-        const root = await this.api.query.nominationPools.metadata(poolId);
+        const { poolId } = JSON.parse(poolInfo.toString());
+        const root = (await this.api.query.nominationPools.metadata(poolId)).toString();
         const verified = await this.getIsRootVerified(root);
         const meetsStakingRequirement = await this.getRootMeetsStakeRequirement(root);
         const meetsMinSpotRequirement = await this.getMeetsMinSpotRequirement(root);
@@ -78,9 +81,10 @@ export default class PoolSelector {
     * */
     private async getValidatorsMeetCriteria(poolAccountId: String): Promise<boolean> {
         const validatorsSelected = await this.api.query.staking.nominators(poolAccountId);
-        if(this.minNumberOfValidators < validatorsSelected.length) return false;
-        for(let v of validatorsSelected) {
-            const meetsCriteria = this.validatorSelector.getMeetsCriteriaByAccountId(v.address);
+        const { targets } = JSON.parse(validatorsSelected.toString());
+        if(this.minNumberOfValidators < targets.length) return false;
+        for(let t of targets) {
+            const meetsCriteria = await this.validatorSelector.getMeetsCriteriaByAccountId(t.address);
             if(!meetsCriteria) return false;
         }
 
@@ -95,19 +99,17 @@ export default class PoolSelector {
         await this.init();
         const matchingPools: MatchingPool[] = [];
         const pools = await this.api.query.nominationPools.poolMembers.entries();
-
         for (const [k, v] of pools) {
            const poolAccountId = k.args[0].toString();
            const meetsCriteria = await this.getMeetsCriteriaByPoolAccountId(poolAccountId);
            if(meetsCriteria) {
-               // TODO
                matchingPools.push({
                    poolAccountId: poolAccountId,
-                   rootAccountId: k.args[1].toString(),
-                   poolNumber: parseInt(k.args[2].toString())
+                   rootAccountId: "", // TODO must get from somewhere else
+                   poolId: JSON.parse(v.toString()).poolId
                });
            }
-            if(matchingPools.length == this.numberOfPools) break;
+           if(matchingPools.length == this.numberOfPools) break;
         }
 
         return matchingPools;
@@ -129,10 +131,14 @@ export default class PoolSelector {
     * @returns - true if it has, else false
     * */
     private async getMeetsMinSpotRequirement(account: String): Promise<boolean> {
-        const members = await this.api.query.nominationPools.poolMembers(account);
-        const freeSpots = this.maxMembers - members;
-
-        return members.length < this.maxMembers && freeSpots >= this.minSpots;
+        // TODO this is the wrong call
+        // const data = await this.api.query.nominationPools.poolMembers(account);
+        // const members = JSON.parse(data.toString());
+        // console.log(members)
+        // const freeSpots: Number = this.maxMembers - members;
+        //
+        // return members.length < this.maxMembers && freeSpots >= this.minSpots;
+        return false;
     }
 
     /*
@@ -141,9 +147,10 @@ export default class PoolSelector {
     * @returns - true if it has, else false
     * */
     private async getRootMeetsStakeRequirement(root: String): Promise<boolean> {
-        const exposure = await this.api.query.staking.erasStakers(this.era, root);
+        const erasStakers = await this.api.query.staking.erasStakers(this.era, root);
+        const { own } = JSON.parse(erasStakers.toString());
 
-        return exposure.toJSON().own >= this.minStake;
+        return own >= this.minStake;
     }
 
 }

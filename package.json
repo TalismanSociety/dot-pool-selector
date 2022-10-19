@@ -18,7 +18,8 @@
   },
   "homepage": "https://github.com/James-Sangalli/dot-pool-selector#readme",
   "dependencies": {
-    "@polkadot/api": "^6.0.5",
+    "@polkadot/api": "^9.5.2",
+    "@polkadot/api-augment": "^9.5.2",
     "dot-validator-selector": "https://github.com/James-Sangalli/dot-validator-selector/archive/refs/tags/v1.0.4.tar.gz"
   },
   "devDependencies": {
