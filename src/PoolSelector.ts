@@ -1,10 +1,13 @@
 import '@polkadot/api-augment';
 import { ApiPromise } from "@polkadot/api";
+import { bnToU8a, stringToU8a, u8aConcat } from '@polkadot/util';
+import { BN } from '@polkadot/util';
 
 export type Pool = {
     pass: boolean;
     poolId: number;
-    poolAccountId: string;
+    poolStashAccountId: string;
+    poolRewardAccountId: string;
     depositor: string;
     root: string;
     nominator: string;
@@ -28,7 +31,8 @@ export default class PoolSelector {
         memberCount: 0,
         nominator: "",
         pass: false,
-        poolAccountId: "",
+        poolStashAccountId: "",
+        poolRewardAccountId: "",
         poolId: 0,
         root: "",
         state: "",
@@ -80,14 +84,14 @@ export default class PoolSelector {
     async getPoolInfoAndMatchById(poolId: number): Promise<Pool> {
         await this.init();
         const data = await this.api.query.nominationPools.bondedPools(poolId);
-        // TODO sanity check this
         if(data.isEmpty) return this.emptyPoolObj;
         const poolInfo = JSON.parse(data.toString());
         const { root, depositor, nominator, stateToggler } = poolInfo.roles;
         const pool: Pool = {
             pass: false,
             poolId: poolId,
-            poolAccountId: "", // TODO
+            poolStashAccountId: this.getPoolAccount(new BN(poolId), 0),
+            poolRewardAccountId: this.getPoolAccount(new BN(poolId), 1),
             depositor: depositor,
             root: root,
             nominator: nominator,
@@ -103,10 +107,27 @@ export default class PoolSelector {
         if(!meetsStakingRequirement) return pool;
         const meetsMinSpotRequirement = this.maxMembers - poolInfo.memberCounter >= this.minSpots;
         if(!meetsMinSpotRequirement) return pool;
-        // TODO probably need to grab the pool account ID here
-        pool.pass = await this.getValidatorsMeetCriteria(root);
+        // TODO there is a bug here
+        pool.pass = await this.getValidatorsMeetCriteria(pool.poolStashAccountId);
 
         return pool;
+    }
+
+    /*
+    * @dev see https://github.com/polkadot-js/apps/blob/v0.121.1/packages/page-staking/src/usePoolAccounts.ts#L17
+    * */
+    private getPoolAccount(poolId: BN, index: number): string {
+        const palletId = this.api.consts.nominationPools.palletId.toU8a();
+        const EMPTY_H256 = new Uint8Array(32);
+        const MOD_PREFIX = stringToU8a('modl');
+        const U32_OPTS = { bitLength: 32, isLe: true };
+        return this.api.registry.createType('AccountId32', u8aConcat(
+            MOD_PREFIX,
+            palletId,
+            new Uint8Array([index]),
+            bnToU8a(poolId, U32_OPTS),
+            EMPTY_H256
+        )).toString();
     }
 
     /*

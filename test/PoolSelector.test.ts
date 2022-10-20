@@ -40,28 +40,22 @@ describe("ValidatorSelector functionality", () => {
         expect(!identity.isEmpty, "Identity should not be empty");
     });
 
-    it("should only get pools where the max member count has not been reached", async() => {
-        const max = poolSelector.maxMembers;
-        const membersOfFirstPool = await api.query.nominationPools.poolMembers(pools[0].poolId);
-        const members = JSON.parse(membersOfFirstPool.toString());
-        expect(max > members, "Pool should not have reached the max member count");
-    });
-
     it("should only get pools with the min amount of available spots specified", async() => {
         const data = await api.query.nominationPools.bondedPools(pools[0].poolId);
         const poolInfo = JSON.parse(data.toString());
         const meetsMinSpotRequirement = (1024 - poolInfo.memberCounter) >= minSpots;
+        expect(poolSelector.maxMembers > poolInfo.memberCounter, "should only find pools below the max member threshold");
         expect(meetsMinSpotRequirement).to.be.equal(true, "should only find pools with the min amount of free spaces");
     });
 
     it("should only get pools where the root has skin in the game meeting the requirement set", async() => {
         const erasStakers = await api.query.staking.erasStakers(era, pools[0].root);
         const { own } = JSON.parse(erasStakers.toString());
-        expect(own.toNumber() >= minStake, "Root should meet staking requirements");
+        expect(own >= minStake, "Root should meet staking requirements");
     });
 
     it("should exclude a pool with validators that don't meet the requirements", async() => {
-        const nominatorData = await api.query.staking.nominators(pools[0].poolAccountId);
+        const nominatorData = await api.query.staking.nominators(pools[0].poolStashAccountId);
         const { targets } = JSON.parse(nominatorData.toString());
         for(let n of targets) {
             const meetsCriteria = await validatorSelector.getMeetsCriteriaByAccountId(n);
@@ -77,7 +71,7 @@ describe("ValidatorSelector functionality", () => {
     });
 
     it("should only get pools with a minimum of the specified validators", async() => {
-        const data = await api.query.staking.nominators(pools[0].poolAccountId);
+        const data = await api.query.staking.nominators(pools[0].poolStashAccountId);
         const { targets } = JSON.parse(data.toString());
         expect(targets.length >= minValidators, `Should have at least ${minValidators} validators`);
     });
