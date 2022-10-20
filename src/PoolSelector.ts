@@ -1,22 +1,39 @@
 import '@polkadot/api-augment';
 import { ApiPromise } from "@polkadot/api";
 
-type MatchingPool = {
-    poolAccountId: String,
-    rootAccountId: String,
-    poolId: Number
+export type Pool = {
+    pass: boolean;
+    poolId: number;
+    poolAccountId: string;
+    depositor: string;
+    root: string;
+    nominator: string;
+    stateToggler: string;
+    state: string;
+    memberCount: number;
 }
 
 export default class PoolSelector {
 
-    minStake: Number;
-    minSpots: Number;
-    numberOfPools: Number;
+    minStake: number;
+    minSpots: number;
+    desiredNumberOfPools: number;
     api: ApiPromise;
-    maxMembers: Number = 0;
-    era: Number;
-    minNumberOfValidators: Number;
+    maxMembers: number;
+    era: number;
+    minNumberOfValidators: number;
     validatorSelector;
+    emptyPoolObj: Pool = {
+        depositor: "",
+        memberCount: 0,
+        nominator: "",
+        pass: false,
+        poolAccountId: "",
+        poolId: 0,
+        root: "",
+        state: "",
+        stateToggler: ""
+    };
 
     /*
     * @param minStake - the desired minimum amount of stake that the root account should hold
@@ -24,32 +41,31 @@ export default class PoolSelector {
     * @param numberOfPools - the desired number of pools to retrieve meeting the criteria
     * @param minNumberOfValidators - the minimum number of validators the pool should have selected
     * @param era - the era to check for, if set to zero this module will get the latest in the init function
+    * @param maxMembers - the maximum number of members in a pool
     * @param validatorSelector - the initialised validator selector module
     * @param api - the initialised polkadot.js instance
     * */
     constructor(
-        minStake: Number,
-        minSpots: Number,
-        numberOfPools: Number,
-        minNumberOfValidators: Number,
-        era: Number = 0,
+        minStake: number,
+        minSpots: number,
+        numberOfPools: number,
+        minNumberOfValidators: number,
+        era: number = 0,
+        maxMembers: number = 1024, // TODO place polkadot default here (currently kusama)
         validatorSelector: any,
         api: ApiPromise
     ) {
         this.minStake = minStake;
         this.minSpots = minSpots;
-        this.numberOfPools = numberOfPools;
+        this.desiredNumberOfPools = numberOfPools;
         this.era = era;
         this.minNumberOfValidators = minNumberOfValidators;
         this.api = api;
         this.validatorSelector = validatorSelector;
+        this.maxMembers = maxMembers;
     }
 
     private async init() {
-        if (this.maxMembers == 0) {
-            const max = await this.api.query.nominationPools.maxPoolMembersPerPool();
-            this.maxMembers = parseInt(max.toString());
-        }
         if(this.era == 0) {
             const { index } = JSON.parse((await this.api.query.staking.activeEra()).toString());
             this.era = index;
@@ -57,21 +73,40 @@ export default class PoolSelector {
     }
 
     /*
-    * @dev - checks whether a specific pool matches the criteria set
-    * @param - the account id of the specified pool
-    * @returns - true if it meets the criteria else false
+    * @dev - gets the pool's information and checks if it meets the criteria
+    * @param - the pool id for a specific pool
+    * @returns - a pool object containing info about the pool and whether it matches the criteria or not
     * */
-    async getMeetsCriteriaByPoolAccountId(poolAccountId: String): Promise<boolean> {
+    async getPoolInfoAndMatchById(poolId: number): Promise<Pool> {
         await this.init();
-        const poolInfo = await this.api.query.nominationPools.poolMembers(poolAccountId);
-        const { poolId } = JSON.parse(poolInfo.toString());
-        const root = (await this.api.query.nominationPools.metadata(poolId)).toString();
+        const data = await this.api.query.nominationPools.bondedPools(poolId);
+        // TODO sanity check this
+        if(data.isEmpty) return this.emptyPoolObj;
+        const poolInfo = JSON.parse(data.toString());
+        const { root, depositor, nominator, stateToggler } = poolInfo.roles;
+        const pool: Pool = {
+            pass: false,
+            poolId: poolId,
+            poolAccountId: "", // TODO
+            depositor: depositor,
+            root: root,
+            nominator: nominator,
+            stateToggler: stateToggler,
+            state: poolInfo.state,
+            memberCount: poolInfo.memberCounter,
+        }
+        const isOpen = poolInfo.state == "Open";
+        if(!isOpen) return pool;
         const verified = await this.getIsRootVerified(root);
+        if(!verified) return pool;
         const meetsStakingRequirement = await this.getRootMeetsStakeRequirement(root);
-        const meetsMinSpotRequirement = await this.getMeetsMinSpotRequirement(root);
-        const validatorsMeetCriteria = await this.getValidatorsMeetCriteria(poolAccountId);
+        if(!meetsStakingRequirement) return pool;
+        const meetsMinSpotRequirement = this.maxMembers - poolInfo.memberCounter >= this.minSpots;
+        if(!meetsMinSpotRequirement) return pool;
+        // TODO probably need to grab the pool account ID here
+        pool.pass = await this.getValidatorsMeetCriteria(root);
 
-        return verified && meetsStakingRequirement && meetsMinSpotRequirement && validatorsMeetCriteria;
+        return pool;
     }
 
     /*
@@ -79,10 +114,11 @@ export default class PoolSelector {
     * @param - the account id of the specified pool
     * @returns - true if it meets the criteria else false
     * */
-    private async getValidatorsMeetCriteria(poolAccountId: String): Promise<boolean> {
+    private async getValidatorsMeetCriteria(poolAccountId: string): Promise<boolean> {
         const validatorsSelected = await this.api.query.staking.nominators(poolAccountId);
+        if(validatorsSelected.isEmpty) return false;
         const { targets } = JSON.parse(validatorsSelected.toString());
-        if(this.minNumberOfValidators < targets.length) return false;
+        if(targets.length < this.minNumberOfValidators) return false;
         for(let t of targets) {
             const meetsCriteria = await this.validatorSelector.getMeetsCriteriaByAccountId(t.address);
             if(!meetsCriteria) return false;
@@ -93,23 +129,16 @@ export default class PoolSelector {
 
     /*
     * @dev - get pools meeting the criteria
-    * @returns - an array of MatchingPool objects (Pools that match the criteria set)
+    * @returns - an array of matching pool objects
     * */
-    async getPoolsMeetingCriteria(): Promise<MatchingPool[]> {
+    async getPoolsMeetingCriteria(): Promise<Pool[]> {
         await this.init();
-        const matchingPools: MatchingPool[] = [];
-        const pools = await this.api.query.nominationPools.poolMembers.entries();
-        for (const [k, v] of pools) {
-           const poolAccountId = k.args[0].toString();
-           const meetsCriteria = await this.getMeetsCriteriaByPoolAccountId(poolAccountId);
-           if(meetsCriteria) {
-               matchingPools.push({
-                   poolAccountId: poolAccountId,
-                   rootAccountId: "", // TODO must get from somewhere else
-                   poolId: JSON.parse(v.toString()).poolId
-               });
-           }
-           if(matchingPools.length == this.numberOfPools) break;
+        const matchingPools = [];
+        const numberOfPools = await this.api.query.nominationPools.counterForRewardPools();
+        for(let i = 1; i <= numberOfPools.toNumber(); i++) {
+            const pool = await this.getPoolInfoAndMatchById(i);
+            if(pool.pass) matchingPools.push(pool);
+            if(matchingPools.length == this.desiredNumberOfPools) break;
         }
 
         return matchingPools;
@@ -119,26 +148,10 @@ export default class PoolSelector {
     * @dev - check if the root user has a verified identity
     * @returns - true if it does, else false
     * */
-    private async getIsRootVerified(root: String): Promise<boolean> {
+    private async getIsRootVerified(root: string): Promise<boolean> {
         const identity = await this.api.query.identity.identityOf(root);
 
         return !identity.isEmpty;
-    }
-
-    /*
-    * @dev - checks if the pool has the desired amount of free spots or not and whether it has reached or exceeded the max member count
-    * @param account - the account id of the pool
-    * @returns - true if it has, else false
-    * */
-    private async getMeetsMinSpotRequirement(account: String): Promise<boolean> {
-        // TODO this is the wrong call
-        // const data = await this.api.query.nominationPools.poolMembers(account);
-        // const members = JSON.parse(data.toString());
-        // console.log(members)
-        // const freeSpots: Number = this.maxMembers - members;
-        //
-        // return members.length < this.maxMembers && freeSpots >= this.minSpots;
-        return false;
     }
 
     /*
@@ -146,7 +159,7 @@ export default class PoolSelector {
     * @param - the root address
     * @returns - true if it has, else false
     * */
-    private async getRootMeetsStakeRequirement(root: String): Promise<boolean> {
+    private async getRootMeetsStakeRequirement(root: string): Promise<boolean> {
         const erasStakers = await this.api.query.staking.erasStakers(this.era, root);
         const { own } = JSON.parse(erasStakers.toString());
 
