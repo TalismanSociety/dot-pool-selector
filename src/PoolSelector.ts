@@ -107,7 +107,6 @@ export default class PoolSelector {
         if(!meetsStakingRequirement) return pool;
         const meetsMinSpotRequirement = this.maxMembers - poolInfo.memberCounter >= this.minSpots;
         if(!meetsMinSpotRequirement) return pool;
-        // TODO there is a bug here
         pool.pass = await this.getValidatorsMeetCriteria(pool.poolStashAccountId);
 
         return pool;
@@ -139,9 +138,11 @@ export default class PoolSelector {
         const validatorsSelected = await this.api.query.staking.nominators(poolAccountId);
         if(validatorsSelected.isEmpty) return false;
         const { targets } = JSON.parse(validatorsSelected.toString());
+        const duplicate = new Set(targets).size !== targets.length;
+        if(duplicate) return false; // validators should be unique
         if(targets.length < this.minNumberOfValidators) return false;
         for(let t of targets) {
-            const meetsCriteria = await this.validatorSelector.getMeetsCriteriaByAccountId(t.address);
+            const meetsCriteria = await this.validatorSelector.getMeetsCriteriaByAccountId(t);
             if(!meetsCriteria) return false;
         }
 

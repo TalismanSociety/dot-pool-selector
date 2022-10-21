@@ -18,21 +18,21 @@ describe("ValidatorSelector functionality", () => {
 
     before(async() => {
         api = await ApiPromise.create({ provider: new WsProvider("wss://kusama.api.onfinality.io/ws?apikey=09f0165a-7632-408b-ba81-08f964b607f7") });
-        validatorSelector = new ValidatorSelector(api);
+        const activeEra = await api.query.staking.activeEra();
+        const { index } = JSON.parse((activeEra).toString());
+        era = index;
+        validatorSelector = new ValidatorSelector(api, undefined, undefined, undefined, era);
         poolSelector = new PoolSelector(
             minStake,
             minSpots,
             minValidators,
             numberOfPools,
-            0,
+            undefined,
             undefined,
             validatorSelector,
             api
         );
         pools = await poolSelector.getPoolsMeetingCriteria();
-        const activeEra = await api.query.staking.activeEra();
-        const { index } = JSON.parse((activeEra).toString());
-        era = index;
     });
 
     it("should only get pools where the root is verified", async() => {
