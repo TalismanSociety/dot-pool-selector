@@ -10,3 +10,33 @@ The algorithm selects pools based on the following:
 - The pool is in an open state 
 - The pool has not reached the max member count 
 - The pool has selected an optimal number of validators
+
+## Getting started 
+Install the modules with `npm i` & run the tests with `npm run test`. 
+
+## Usage 
+```ts
+// initialise the polkadot api object 
+const { ApiPromise, WsProvider} = require("@polkadot/api");
+const api = await ApiPromise.create({ provider: new WsProvider("YOUR_PROVIDER") });
+
+// initialise the ValidatorSelector
+const selector = new ValidatorSelector(api, MAX_COMMISSION, MIN_STAKING, ERA); // set ERA to 0 or undefined if you want to use the current era
+
+// Initialise the PoolSelector
+const poolSelector = new PoolSelector(
+    minStake, // minimum amount of stake from the root user 
+    minSpots, // minimum amount of space in the pool
+    minValidators, // minimum amount of validators
+    numberOfPools, // amount of pools meeting the criteria that you wish to retrieve 
+    era, // the era epoch (set as undefined or 0 if you want the selector to use and retrieve) the latest
+    maxMembers, // the maximum amount of users allowed in a pool (leave undefined if you want the selector to retrieve and use it)
+    validatorSelector, // the initialised ValidatorSelector
+    api // the initialised polkadot.js api object
+);
+
+// get validator pools meeting the criteria
+poolSelector.getPoolsMeetingCriteria();
+// sample output
+> [{ "pass": true, "poolId": 10, "poolStashAccountId": "F3opxRbN5ZavB4LTn2G7pUpU9FV2tzasBzFYncxp1HdYEdy", "poolRewardAccountId": "F3opxRbN5ZavB4LTn2Xrr2QadvgVT6Tbrvm6jJoGqAMorEE", "depositor": "H1bSKJxoxzxYRCdGQutVqFGeW7xU3AcN6vyEdZBU7Qb1rsZ", "root": "H1bSKJxoxzxYRCdGQutVqFGeW7xU3AcN6vyEdZBU7Qb1rsZ", "nominator": "H1bSKJxoxzxYRCdGQutVqFGeW7xU3AcN6vyEdZBU7Qb1rsZ", "stateToggler": "H1bSKJxoxzxYRCdGQutVqFGeW7xU3AcN6vyEdZBU7Qb1rsZ", "state": "Open", "memberCount": 3 }, ...]
+```
