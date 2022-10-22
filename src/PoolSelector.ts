@@ -26,6 +26,10 @@ export default class PoolSelector {
     era: number;
     minNumberOfValidators: number;
     validatorSelector;
+    checkRootVerified: boolean;
+    checkForDuplicateValidators: boolean;
+    checkValidators: boolean;
+
     emptyPoolObj: Pool = {
         depositor: "",
         memberCount: 0,
@@ -48,6 +52,9 @@ export default class PoolSelector {
     * @param maxMembers - the maximum number of members in a pool
     * @param validatorSelector - the initialised validator selector module
     * @param api - the initialised polkadot.js instance
+    * @param checkRootVerified - check if the root is verified (ignore if false)
+    * @param checkForDuplicateValidators - check if the pool has duplicate validators (ignore if false)
+    * @param checkValidators - check that validators meet the criteria set by the ValidatorSelector (ignore if false)
     * */
     constructor(
         minStake: number,
@@ -55,11 +62,14 @@ export default class PoolSelector {
         numberOfPools: number,
         minNumberOfValidators: number,
         era: number = 0,
-        maxMembers: number = 1024, // TODO place polkadot default here (currently kusama)
+        maxMembers: number = 1024, // TODO place polkadot default here on launch (currently kusama)
         validatorSelector: any,
-        api: ApiPromise
+        api: ApiPromise,
+        checkRootVerified: boolean = true,
+        checkForDuplicateValidators: boolean = true,
+        checkValidators: boolean = true,
     ) {
-        this.minStake = minStake;
+        this.minStake = minStake * 10 ** api.registry.chainDecimals[0];
         this.minSpots = minSpots;
         this.desiredNumberOfPools = numberOfPools;
         this.era = era;
@@ -67,6 +77,9 @@ export default class PoolSelector {
         this.api = api;
         this.validatorSelector = validatorSelector;
         this.maxMembers = maxMembers;
+        this.checkRootVerified = checkRootVerified;
+        this.checkForDuplicateValidators = checkForDuplicateValidators;
+        this.checkValidators = checkValidators;
     }
 
     private async init() {
@@ -99,15 +112,20 @@ export default class PoolSelector {
             state: poolInfo.state,
             memberCount: poolInfo.memberCounter,
         }
-        const isOpen = poolInfo.state == "Open";
-        if(!isOpen) return pool;
-        const verified = await this.getIsRootVerified(root);
-        if(!verified) return pool;
+        if(poolInfo.state != "Open") return pool;
+        if(this.checkRootVerified) {
+            const verified = await this.getIsRootVerified(root);
+            if(!verified) return pool;
+        }
         const meetsStakingRequirement = await this.getRootMeetsStakeRequirement(root);
         if(!meetsStakingRequirement) return pool;
         const meetsMinSpotRequirement = this.maxMembers - poolInfo.memberCounter >= this.minSpots;
         if(!meetsMinSpotRequirement) return pool;
-        pool.pass = await this.getValidatorsMeetCriteria(pool.poolStashAccountId);
+        if(this.checkValidators) {
+            pool.pass = await this.getValidatorsMeetCriteriaByPoolId(pool.poolStashAccountId);
+        } else {
+            pool.pass = true;
+        }
 
         return pool;
     }
@@ -134,12 +152,16 @@ export default class PoolSelector {
     * @param - the account id of the specified pool
     * @returns - true if it meets the criteria else false
     * */
-    private async getValidatorsMeetCriteria(poolAccountId: string): Promise<boolean> {
+    private async getValidatorsMeetCriteriaByPoolId(poolAccountId: string): Promise<boolean> {
         const validatorsSelected = await this.api.query.staking.nominators(poolAccountId);
-        if(validatorsSelected.isEmpty) return false;
+        if(validatorsSelected.isEmpty) {
+            return false;
+        }
         const { targets } = JSON.parse(validatorsSelected.toString());
-        const duplicate = new Set(targets).size !== targets.length;
-        if(duplicate) return false; // validators should be unique
+        if(this.checkForDuplicateValidators) {
+            const duplicate = new Set(targets).size !== targets.length;
+            if(duplicate) return false;
+        }
         if(targets.length < this.minNumberOfValidators) return false;
         for(let t of targets) {
             const meetsCriteria = await this.validatorSelector.getMeetsCriteriaByAccountId(t);

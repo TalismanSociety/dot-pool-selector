@@ -4,6 +4,7 @@ import { ApiPromise, WsProvider } from "@polkadot/api";
 import PoolSelector, { Pool } from "../src/PoolSelector";
 const ValidatorSelector = require("dot-validator-selector/util/ValidatorSelector.js");
 
+// TODO strengthen
 describe("ValidatorSelector functionality", () => {
 
     let poolSelector: PoolSelector;
@@ -11,7 +12,7 @@ describe("ValidatorSelector functionality", () => {
     let era: Number;
     let pools: Pool[];
     let validatorSelector: any;
-    const minStake = 100000;
+    const minStake = 0;
     const minSpots = 100;
     const minValidators = 5;
     const numberOfPools = 2;
@@ -21,7 +22,7 @@ describe("ValidatorSelector functionality", () => {
         const activeEra = await api.query.staking.activeEra();
         const { index } = JSON.parse((activeEra).toString());
         era = index;
-        validatorSelector = new ValidatorSelector(api, undefined, undefined, undefined, era);
+        validatorSelector = new ValidatorSelector(api, undefined, undefined, minStake, era);
         poolSelector = new PoolSelector(
             minStake,
             minSpots,
@@ -30,7 +31,10 @@ describe("ValidatorSelector functionality", () => {
             undefined,
             undefined,
             validatorSelector,
-            api
+            api,
+            false,
+            true,
+            true
         );
         pools = await poolSelector.getPoolsMeetingCriteria();
     });
@@ -82,5 +86,11 @@ describe("ValidatorSelector functionality", () => {
         expect(await poolSelector.getPoolInfoAndMatchById(1), "Pool 1 should meet the criteria in this era");
         expect(!(await poolSelector.getPoolInfoAndMatchById(2)), "Pool 2 should not meet the criteria in this era");
     });
+
+    it("should be able to skip validator checking", async() => {
+        poolSelector.checkValidators = false;
+        const pools = await poolSelector.getPoolsMeetingCriteria();
+        expect(pools.length > 0, "should be able to get pools without validator check");
+    })
 
 });

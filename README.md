@@ -16,11 +16,11 @@ Install the modules with `npm i` & run the tests with `npm run test`.
 
 ## Usage 
 ```ts
-// initialise the polkadot api object 
+// Initialise the polkadot api object 
 const { ApiPromise, WsProvider} = require("@polkadot/api");
 const api = await ApiPromise.create({ provider: new WsProvider("YOUR_PROVIDER") });
 
-// initialise the ValidatorSelector
+// Initialise the ValidatorSelector
 const selector = new ValidatorSelector(api, MAX_COMMISSION, MIN_STAKING, ERA); // set ERA to 0 or undefined if you want to use the current era
 
 // Initialise the PoolSelector
@@ -32,7 +32,10 @@ const poolSelector = new PoolSelector(
     era, // the era epoch (set as undefined or 0 if you want the selector to use and retrieve) the latest
     maxMembers, // the maximum amount of users allowed in a pool (leave undefined if you want the selector to retrieve and use it)
     validatorSelector, // the initialised ValidatorSelector
-    api // the initialised polkadot.js api object
+    api, // the initialised polkadot.js api object
+    checkRootVerified, // check if the root user has a verified identity (ignore if false)
+    checkForDuplicateValidators, // check for duplicate validators (ignore if false)
+    checkValidators, // check validators against the ValidatorSelector (ignore if false)
 );
 
 // get validator pools meeting the criteria
