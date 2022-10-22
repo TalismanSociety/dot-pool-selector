@@ -3,32 +3,29 @@ const { chai, expect } = require('chai');
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import PoolSelector, { Pool } from "../src/PoolSelector";
 const ValidatorSelector = require("dot-validator-selector/util/ValidatorSelector.js");
+import { BN } from '@polkadot/util';
 
-// TODO strengthen
 describe("ValidatorSelector functionality", () => {
 
     let poolSelector: PoolSelector;
     let api: ApiPromise;
-    let era: Number;
+    let era = 4352;
     let pools: Pool[];
     let validatorSelector: any;
-    const minStake = 0;
+    const minStake = new BN(0);
     const minSpots = 100;
     const minValidators = 5;
     const numberOfPools = 2;
 
     before(async() => {
         api = await ApiPromise.create({ provider: new WsProvider("wss://kusama.api.onfinality.io/ws?apikey=09f0165a-7632-408b-ba81-08f964b607f7") });
-        const activeEra = await api.query.staking.activeEra();
-        const { index } = JSON.parse((activeEra).toString());
-        era = index;
         validatorSelector = new ValidatorSelector(api, undefined, undefined, minStake, era);
         poolSelector = new PoolSelector(
             minStake,
             minSpots,
             minValidators,
             numberOfPools,
-            undefined,
+            era,
             undefined,
             validatorSelector,
             api,
@@ -80,17 +77,27 @@ describe("ValidatorSelector functionality", () => {
         expect(targets.length >= minValidators, `Should have at least ${minValidators} validators`);
     });
 
-    it("should be able to check a current selection", async() => {
-        // TODO specify an era where a specific pool meets the criteria perfectly and one where it doesn't
-        poolSelector.era = 900;
-        expect(await poolSelector.getPoolInfoAndMatchById(1), "Pool 1 should meet the criteria in this era");
-        expect(!(await poolSelector.getPoolInfoAndMatchById(2)), "Pool 2 should not meet the criteria in this era");
-    });
-
     it("should be able to skip validator checking", async() => {
         poolSelector.checkValidators = false;
         const pools = await poolSelector.getPoolsMeetingCriteria();
         expect(pools.length > 0, "should be able to get pools without validator check");
-    })
+    });
+
+    it("should not be able to find any pools with a verified root in the specified era", async() => {
+        poolSelector.checkRootVerified = true;
+        const pools = await poolSelector.getPoolsMeetingCriteria();
+        expect(pools.length).to.equal(0, `should not find any pools with a verified root in era ${era}`)
+    });
+
+    it("should not be able to find any pools with a stake of 1 ksm in the specified era", async() => {
+        poolSelector.minStake = new BN("1000000000000");
+        const pools = await poolSelector.getPoolsMeetingCriteria();
+        expect(pools.length).to.equal(0, `should not find any pools with a root that has staked 1ksm or more in era ${era}`)
+    });
+
+    it("should not accept a pool with duplicate validators", async() => {
+        const match = await poolSelector.getPoolInfoAndMatchById(1);
+        expect(match.pass).to.equal(false, `pool 1 in era ${era} has duplicate validators and should fail`);
+    });
 
 });
