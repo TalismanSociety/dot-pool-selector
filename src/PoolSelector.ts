@@ -18,7 +18,7 @@ export type Pool = {
 
 export default class PoolSelector {
 
-    minStake: number;
+    minStake: BN;
     minSpots: number;
     desiredNumberOfPools: number;
     api: ApiPromise;
@@ -57,19 +57,20 @@ export default class PoolSelector {
     * @param checkValidators - check that validators meet the criteria set by the ValidatorSelector (ignore if false)
     * */
     constructor(
-        minStake: number,
+        minStake: BN,
         minSpots: number,
         numberOfPools: number,
         minNumberOfValidators: number,
-        era: number = 0,
-        maxMembers: number = 1024, // TODO place polkadot default here on launch (currently kusama)
+        era = 0,
+        maxMembers = 1024, // TODO place polkadot default here on launch (currently kusama)
         validatorSelector: any,
         api: ApiPromise,
-        checkRootVerified: boolean = true,
-        checkForDuplicateValidators: boolean = true,
-        checkValidators: boolean = true,
+        checkRootVerified = true,
+        checkForDuplicateValidators = true,
+        checkValidators = true,
     ) {
-        this.minStake = minStake * 10 ** api.registry.chainDecimals[0];
+        // TODO might be better to simply take the whole units without scaling to decimals
+        this.minStake = minStake.mul(new BN(10)).pow(new BN(api.registry.chainDecimals[0].toString()));
         this.minSpots = minSpots;
         this.desiredNumberOfPools = numberOfPools;
         this.era = era;
