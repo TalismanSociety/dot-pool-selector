@@ -18,17 +18,17 @@ export type Pool = {
 
 export default class PoolSelector {
 
-    minStake: BN;
-    minSpots: number;
-    desiredNumberOfPools: number;
-    api: ApiPromise;
-    maxMembers: number;
-    era: number;
-    minNumberOfValidators: number;
-    validatorSelector;
-    checkRootVerified: boolean;
-    checkForDuplicateValidators: boolean;
-    checkValidators: boolean;
+    readonly minStake: BN;
+    readonly minSpots: number;
+    readonly desiredNumberOfPools: number;
+    readonly api: ApiPromise;
+    readonly maxMembers: number;
+    private era: number;
+    readonly minNumberOfValidators: number;
+    readonly validatorSelector;
+    readonly checkRootVerified: boolean;
+    readonly checkForDuplicateValidators: boolean;
+    readonly checkValidators: boolean;
 
     emptyPoolObj: Pool = {
         depositor: "",
@@ -154,17 +154,27 @@ export default class PoolSelector {
     * @returns - true if it meets the criteria else false
     * */
     private async getValidatorsMeetCriteriaByPoolId(poolAccountId: string): Promise<boolean> {
+        const entities = {}; // check for duplicate entity displays
         const validatorsSelected = await this.api.query.staking.nominators(poolAccountId);
         if(validatorsSelected.isEmpty) {
             return false;
         }
         const { targets } = JSON.parse(validatorsSelected.toString());
-        if(this.checkForDuplicateValidators) {
-            const duplicate = new Set(targets).size !== targets.length;
-            if(duplicate) return false;
-        }
         if(targets.length < this.minNumberOfValidators) return false;
         for(let t of targets) {
+            if(this.checkForDuplicateValidators) {
+                // TODO sanity check
+                const identity = await this.api.query.identity.identityOf(t);
+                if(!identity.isEmpty) {
+                    const { info } = JSON.parse(identity.toString());
+                    // @ts-ignore
+                    if(entities[info.display.raw]) return false;
+                    // @ts-ignore
+                    entities[info.display.raw] = true;
+                } else {
+                    return false; // can't verify if duplicate or not
+                }
+            }
             const meetsCriteria = await this.validatorSelector.getMeetsCriteriaByAccountId(t);
             if(!meetsCriteria) return false;
         }

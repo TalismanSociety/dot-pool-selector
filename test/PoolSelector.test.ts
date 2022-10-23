@@ -78,20 +78,56 @@ describe("ValidatorSelector functionality", () => {
     });
 
     it("should be able to skip validator checking", async() => {
-        poolSelector.checkValidators = false;
-        const pools = await poolSelector.getPoolsMeetingCriteria();
-        expect(pools.length > 0, "should be able to get pools without validator check");
+        const p = new PoolSelector(
+            minStake,
+            minSpots,
+            minValidators,
+            numberOfPools,
+            era,
+            undefined,
+            validatorSelector,
+            api,
+            false,
+            true,
+            false
+        );
+        const pools = await p.getPoolsMeetingCriteria();
+        expect(pools.length == 2, "should be able to get pools without validator check");
     });
 
     it("should not be able to find any pools with a verified root in the specified era", async() => {
-        poolSelector.checkRootVerified = true;
-        const pools = await poolSelector.getPoolsMeetingCriteria();
+        const p = new PoolSelector(
+            new BN("1000000000000"),
+            minSpots,
+            minValidators,
+            numberOfPools,
+            era,
+            undefined,
+            validatorSelector,
+            api,
+            true,
+            true,
+            true
+        );
+        const pools = await p.getPoolsMeetingCriteria();
         expect(pools.length).to.equal(0, `should not find any pools with a verified root in era ${era}`)
     });
 
     it("should not be able to find any pools with a stake of 1 ksm in the specified era", async() => {
-        poolSelector.minStake = new BN("1000000000000");
-        const pools = await poolSelector.getPoolsMeetingCriteria();
+        const p = new PoolSelector(
+            new BN("1000000000000"),
+            minSpots,
+            minValidators,
+            numberOfPools,
+            era,
+            undefined,
+            validatorSelector,
+            api,
+            false,
+            true,
+            true
+        );
+        const pools = await p.getPoolsMeetingCriteria();
         expect(pools.length).to.equal(0, `should not find any pools with a root that has staked 1ksm or more in era ${era}`)
     });
 
