@@ -1,9 +1,10 @@
 import '@polkadot/api-augment';
-const { chai, expect } = require('chai');
+const { expect } = require('chai');
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import PoolSelector, { Pool } from "../src/PoolSelector";
+import PoolSelector from "../src/PoolSelector";
 const ValidatorSelector = require("dot-validator-selector/util/ValidatorSelector.js");
 import { BN } from '@polkadot/util';
+import { Pool, defaultOptions } from "../src/Types";
 
 describe("ValidatorSelector functionality", () => {
 
@@ -15,40 +16,28 @@ describe("ValidatorSelector functionality", () => {
     const minStake = new BN(0);
     const minSpots = 100;
     const minValidators = 2;
-    const numberOfPools = 2;
 
     before(async() => {
         api = await ApiPromise.create({ provider: new WsProvider("wss://kusama.api.onfinality.io/ws?apikey=09f0165a-7632-408b-ba81-08f964b607f7") });
         validatorSelector = new ValidatorSelector(api, undefined, undefined, minStake, era);
+        const options = defaultOptions;
+        options.era = era;
+        options.checkValidators = true;
         poolSelector = new PoolSelector(
-            minStake,
-            minSpots,
-            numberOfPools,
-            minValidators,
-            era,
-            undefined,
             validatorSelector,
             api,
-            false,
-            true,
-            true
+            options
         );
         pools = await poolSelector.getPoolsMeetingCriteria();
     });
 
     it("should get two pools as requested", async() => {
+        const options = defaultOptions;
+        options.numberOfPools = 2;
         const ps = new PoolSelector(
-            minStake,
-            minSpots,
-            2,
-            minValidators,
-            era,
-            undefined,
             validatorSelector,
             api,
-            false,
-            false,
-            false
+            options
         );
         const p = await ps.getPoolsMeetingCriteria();
         expect(p.length).to.equal(2, "should have got two pools with the set criteria");
@@ -97,60 +86,62 @@ describe("ValidatorSelector functionality", () => {
 
     it("should be able to skip validator checking", async() => {
         const p = new PoolSelector(
-            minStake,
-            minSpots,
-            numberOfPools,
-            minValidators,
-            era,
-            undefined,
             validatorSelector,
             api,
-            false,
-            true,
-            false
         );
         const pools = await p.getPoolsMeetingCriteria();
         expect(pools.length == 1, "should be able to get a pool without validator check");
     });
 
-    it("should not be able to find any pools with a verified root in the specified era", async() => {
+    it("should be able to find a pool with a verified root in the specified era", async() => {
+        const options = defaultOptions;
+        options.checkRootVerified = true;
+        options.numberOfPools = 1;
         const p = new PoolSelector(
-            new BN("1000000000000"),
-            minSpots,
-            numberOfPools,
-            minValidators,
-            era,
-            undefined,
             validatorSelector,
             api,
-            true,
-            true,
-            true
+            options
         );
         const pools = await p.getPoolsMeetingCriteria();
-        expect(pools.length).to.equal(0, `should not find any pools with a verified root in era ${era}`)
+        expect(pools.length).to.equal(1, `should find a pool with a verified root in era ${era}`);
+    });
+
+    it("should not be able to find a pool in the specified era meeting the criteria below", async() => {
+        const options = defaultOptions;
+        options.checkRootVerified = true;
+        options.checkForDuplicateValidators = true;
+        options.checkValidators = true;
+        options.rootMinStake = new BN("10000000000000");
+        const p = new PoolSelector(
+            validatorSelector,
+            api,
+            options
+        );
+        const pools = await p.getPoolsMeetingCriteria();
+        expect(pools.length).to.equal(0, `should not be able to find a pool in ${era} with the above criteria`);
     });
 
     it("should not be able to find any pools with a stake of 1 ksm in the specified era", async() => {
+        const options = defaultOptions;
+        options.rootMinStake = new BN("1");
         const p = new PoolSelector(
-            new BN("1000000000000"),
-            minSpots,
-            numberOfPools,
-            minValidators,
-            era,
-            undefined,
             validatorSelector,
             api,
-            false,
-            true,
-            true
+            options,
         );
         const pools = await p.getPoolsMeetingCriteria();
         expect(pools.length).to.equal(0, `should not find any pools with a root that has staked 1ksm or more in era ${era}`)
     });
 
     it("should not accept a pool with duplicate validators", async() => {
-        const match = await poolSelector.getPoolInfoAndMatchById(1);
+        const options = defaultOptions;
+        options.checkForDuplicateValidators = true;
+        const p = new PoolSelector(
+            validatorSelector,
+            api,
+            options
+        );
+        const match = await p.getPoolInfoAndMatchById(1);
         expect(match.pass).to.equal(false, `pool 1 in era ${era} has duplicate validators and should fail`);
     });
 

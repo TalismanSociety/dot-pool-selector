@@ -25,17 +25,9 @@ const selector = new ValidatorSelector(api, MAX_COMMISSION, MIN_STAKING, ERA); /
 
 // Initialise the PoolSelector
 const poolSelector = new PoolSelector(
-    minStake, // minimum amount of stake from the root user 
-    minSpots, // minimum amount of space in the pool
-    minValidators, // minimum amount of validators
-    numberOfPools, // amount of pools meeting the criteria that you wish to retrieve 
-    era, // the era epoch (set as undefined or 0 if you want the selector to use and retrieve) the latest
-    maxMembers, // the maximum amount of users allowed in a pool (leave undefined if you want the selector to retrieve and use it)
     validatorSelector, // the initialised ValidatorSelector
     api, // the initialised polkadot.js api object
-    checkRootVerified, // check if the root user has a verified identity (ignore if false)
-    checkForDuplicateValidators, // check for duplicate validators (ignore if false)
-    checkValidators, // check validators against the ValidatorSelector (ignore if false)
+    options, // see ./src/Types.ts (uses a default object if unset) 
 );
 
 // get validator pools meeting the criteria

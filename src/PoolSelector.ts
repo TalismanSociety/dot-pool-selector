@@ -2,19 +2,7 @@ import '@polkadot/api-augment';
 import { ApiPromise } from "@polkadot/api";
 import { bnToU8a, stringToU8a, u8aConcat } from '@polkadot/util';
 import { BN } from '@polkadot/util';
-
-export type Pool = {
-    pass: boolean;
-    poolId: number;
-    poolStashAccountId: string;
-    poolRewardAccountId: string;
-    depositor: string;
-    root: string;
-    nominator: string;
-    stateToggler: string;
-    state: string;
-    memberCount: number;
-}
+import { Pool, Options, defaultOptions, emptyPoolObj } from "./Types";
 
 export default class PoolSelector {
 
@@ -30,57 +18,28 @@ export default class PoolSelector {
     readonly checkForDuplicateValidators: boolean;
     readonly checkValidators: boolean;
 
-    emptyPoolObj: Pool = {
-        depositor: "",
-        memberCount: 0,
-        nominator: "",
-        pass: false,
-        poolStashAccountId: "",
-        poolRewardAccountId: "",
-        poolId: 0,
-        root: "",
-        state: "",
-        stateToggler: ""
-    };
-
     /*
-    * @param minStake - the desired minimum amount of stake that the root account should hold
-    * @param minSpots - the desired minimum amount of free spaces available in a pool
-    * @param numberOfPools - the desired number of pools to retrieve meeting the criteria
-    * @param minNumberOfValidators - the minimum number of validators the pool should have selected
-    * @param era - the era to check for, if set to zero this module will get the latest in the init function
-    * @param maxMembers - the maximum number of members in a pool
-    * @param validatorSelector - the initialised validator selector module
-    * @param api - the initialised polkadot.js instance
-    * @param checkRootVerified - check if the root is verified (ignore if false)
-    * @param checkForDuplicateValidators - check if the pool has duplicate validators (ignore if false)
-    * @param checkValidators - check that validators meet the criteria set by the ValidatorSelector (ignore if false)
-    * */
+     * @param validatorSelector - the initialised validator selector module
+     * @param api - the initialised polkadot.js instance
+     * @param options - the custom options (see Options type)
+     */
     constructor(
-        minStake: BN,
-        minSpots: number,
-        numberOfPools: number,
-        minNumberOfValidators: number,
-        era = 0,
-        maxMembers = 1024, // TODO place polkadot default here on launch (currently kusama)
         validatorSelector: any,
         api: ApiPromise,
-        checkRootVerified = true,
-        checkForDuplicateValidators = true,
-        checkValidators = true,
+        options: Options = defaultOptions
     ) {
         // TODO might be better to simply take the whole units without scaling to decimals
-        this.minStake = minStake.mul(new BN(10)).pow(new BN(api.registry.chainDecimals[0].toString()));
-        this.minSpots = minSpots;
-        this.desiredNumberOfPools = numberOfPools;
-        this.era = era;
-        this.minNumberOfValidators = minNumberOfValidators;
+        this.minStake = options.rootMinStake.mul(new BN(10)).pow(new BN(api.registry.chainDecimals[0].toString()));
+        this.minSpots = options.minSpots;
+        this.desiredNumberOfPools = options.numberOfPools;
+        this.era = options.era;
+        this.minNumberOfValidators = options.minNumberOfValidators;
         this.api = api;
         this.validatorSelector = validatorSelector;
-        this.maxMembers = maxMembers;
-        this.checkRootVerified = checkRootVerified;
-        this.checkForDuplicateValidators = checkForDuplicateValidators;
-        this.checkValidators = checkValidators;
+        this.maxMembers = options.maxMembers;
+        this.checkRootVerified = options.checkRootVerified;
+        this.checkForDuplicateValidators = options.checkForDuplicateValidators;
+        this.checkValidators = options.checkValidators;
     }
 
     private async init() {
@@ -98,7 +57,7 @@ export default class PoolSelector {
     async getPoolInfoAndMatchById(poolId: number): Promise<Pool> {
         await this.init();
         const data = await this.api.query.nominationPools.bondedPools(poolId);
-        if(data.isEmpty) return this.emptyPoolObj;
+        if(data.isEmpty) return emptyPoolObj;
         const poolInfo = JSON.parse(data.toString());
         const { root, depositor, nominator, stateToggler } = poolInfo.roles;
         const pool: Pool = {
