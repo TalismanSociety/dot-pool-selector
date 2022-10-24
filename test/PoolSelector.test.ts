@@ -14,7 +14,7 @@ describe("ValidatorSelector functionality", () => {
     let validatorSelector: any;
     const minStake = new BN(0);
     const minSpots = 100;
-    const minValidators = 5;
+    const minValidators = 2;
     const numberOfPools = 2;
 
     before(async() => {
@@ -23,8 +23,8 @@ describe("ValidatorSelector functionality", () => {
         poolSelector = new PoolSelector(
             minStake,
             minSpots,
-            minValidators,
             numberOfPools,
+            minValidators,
             era,
             undefined,
             validatorSelector,
@@ -34,6 +34,24 @@ describe("ValidatorSelector functionality", () => {
             true
         );
         pools = await poolSelector.getPoolsMeetingCriteria();
+    });
+
+    it("should get two pools as requested", async() => {
+        const ps = new PoolSelector(
+            minStake,
+            minSpots,
+            2,
+            minValidators,
+            era,
+            undefined,
+            validatorSelector,
+            api,
+            false,
+            false,
+            false
+        );
+        const p = await ps.getPoolsMeetingCriteria();
+        expect(p.length).to.equal(2, "should have got two pools with the set criteria");
     });
 
     it("should only get pools where the root is verified", async() => {
@@ -81,8 +99,8 @@ describe("ValidatorSelector functionality", () => {
         const p = new PoolSelector(
             minStake,
             minSpots,
-            minValidators,
             numberOfPools,
+            minValidators,
             era,
             undefined,
             validatorSelector,
@@ -92,15 +110,15 @@ describe("ValidatorSelector functionality", () => {
             false
         );
         const pools = await p.getPoolsMeetingCriteria();
-        expect(pools.length == 2, "should be able to get pools without validator check");
+        expect(pools.length == 1, "should be able to get a pool without validator check");
     });
 
     it("should not be able to find any pools with a verified root in the specified era", async() => {
         const p = new PoolSelector(
             new BN("1000000000000"),
             minSpots,
-            minValidators,
             numberOfPools,
+            minValidators,
             era,
             undefined,
             validatorSelector,
@@ -117,8 +135,8 @@ describe("ValidatorSelector functionality", () => {
         const p = new PoolSelector(
             new BN("1000000000000"),
             minSpots,
-            minValidators,
             numberOfPools,
+            minValidators,
             era,
             undefined,
             validatorSelector,
