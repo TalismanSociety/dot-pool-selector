@@ -56,7 +56,7 @@ export default class PoolSelector {
     async getPoolInfoAndMatchById(poolId: number): Promise<Pool> {
         await this.init();
         const data = await this.api.query.nominationPools.bondedPools(poolId);
-        if(data.isEmpty) return emptyPoolObj;
+        if(data.isEmpty) return emptyPoolObj; // this can happen if a pool was removed as the index remains
         const poolInfo = JSON.parse(data.toString());
         const { root, depositor, nominator, stateToggler } = poolInfo.roles;
         const pool: Pool = {
@@ -71,15 +71,38 @@ export default class PoolSelector {
             state: poolInfo.state,
             memberCount: poolInfo.memberCounter,
         }
-        if(poolInfo.state != "Open") return pool;
-        if(this.checkRootVerified) {
-            const verified = await this.getIsRootVerified(root);
-            if(!verified) return pool;
+
+        return this.getCheckedPool(pool, poolInfo);
+    }
+
+    /*
+    * @dev - run the pool by the criteria set
+    * @param pool - the unchecked pool object
+    * @param poolInfo - the pool information returned from the bondedPools call
+    * @returns - a pool object containing info about the pool and whether it matches the criteria or not
+    * */
+    private async getCheckedPool(pool: Pool, poolInfo: any): Promise<Pool> {
+        if(poolInfo.state != "Open") {
+            return pool;
         }
-        const meetsStakingRequirement = await this.getRootMeetsStakeRequirement(root);
-        if(!meetsStakingRequirement) return pool;
+
+        if(this.checkRootVerified) {
+            const verified = await this.getIsRootVerified(poolInfo.roles.root);
+            if(!verified) {
+                return pool;
+            }
+        }
+
+        const meetsStakingRequirement = await this.getRootMeetsStakeRequirement(poolInfo.roles.root);
+        if(!meetsStakingRequirement) {
+            return pool;
+        }
+
         const meetsMinSpotRequirement = this.maxMembers - poolInfo.memberCounter >= this.minSpots;
-        if(!meetsMinSpotRequirement) return pool;
+        if(!meetsMinSpotRequirement) {
+            return pool;
+        }
+
         if(this.checkValidators) {
             pool.pass = await this.getValidatorsMeetCriteriaByPoolId(pool.poolStashAccountId);
         } else {
@@ -112,32 +135,62 @@ export default class PoolSelector {
     * @returns - true if it meets the criteria else false
     * */
     private async getValidatorsMeetCriteriaByPoolId(poolAccountId: string): Promise<boolean> {
-        const entities = {}; // check for duplicate entity displays
         const validatorsSelected = await this.api.query.staking.nominators(poolAccountId);
         if(validatorsSelected.isEmpty) {
             return false;
         }
         const { targets } = JSON.parse(validatorsSelected.toString());
-        if(targets.length < this.minNumberOfValidators) return false;
+        if(targets.length < this.minNumberOfValidators){
+            return false;
+        }
+        const duplicatesOrNotChecked = await this.getHasDuplicateValidators(targets);
+        if(duplicatesOrNotChecked) {
+            return false;
+        }
+
+        return this.getValidatorsMeetCriteria(targets);
+    }
+
+    /*
+    * @dev check validators meet the criteria
+    * @param targets - the validator addresses
+    * @returns - true if meets criteria else false
+    * */
+    private async getValidatorsMeetCriteria(targets: string[]): Promise<boolean> {
         for(let t of targets) {
-            if(this.checkForDuplicateValidators) {
-                // TODO sanity check
+            const meetsCriteria = await this.validatorSelector.getMeetsCriteriaByAccountId(t);
+            if(!meetsCriteria) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /*
+    * @dev check if duplicate validators are present in a pool
+    * @dev ignore if user has not enabled the check
+    * @param targets - the validator addresses
+    * @returns - true if duplicates are present, else false
+    * */
+    private async getHasDuplicateValidators(targets: string[]): Promise<boolean> {
+        if(this.checkForDuplicateValidators) {
+            const entities = {};
+            for(let t of targets) {
                 const identity = await this.api.query.identity.identityOf(t);
                 if(!identity.isEmpty) {
                     const { info } = JSON.parse(identity.toString());
                     // @ts-ignore
-                    if(entities[info.display.raw]) return false;
+                    if(entities[info.display.raw]) return true;
                     // @ts-ignore
                     entities[info.display.raw] = true;
                 } else {
-                    return false; // can't verify if duplicate or not
+                    return true; // can't verify if duplicate or not so we assume they are
                 }
             }
-            const meetsCriteria = await this.validatorSelector.getMeetsCriteriaByAccountId(t);
-            if(!meetsCriteria) return false;
         }
 
-        return true;
+        return false;
     }
 
     /*
