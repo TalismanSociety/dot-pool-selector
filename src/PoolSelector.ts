@@ -28,7 +28,6 @@ export default class PoolSelector {
         api: ApiPromise,
         options: Options = defaultOptions
     ) {
-        // TODO might be better to simply take the whole units without scaling to decimals
         this.minStake = options.rootMinStake.mul(new BN(10)).pow(new BN(api.registry.chainDecimals[0].toString()));
         this.minSpots = options.minSpots;
         this.desiredNumberOfPools = options.numberOfPools;
@@ -149,13 +148,29 @@ export default class PoolSelector {
         await this.init();
         const matchingPools = [];
         const numberOfPools = await this.api.query.nominationPools.counterForRewardPools();
-        for(let i = 1; i <= numberOfPools.toNumber(); i++) {
-            const pool = await this.getPoolInfoAndMatchById(i);
+        const randomisedOrder = PoolSelector.randomiseOrder(numberOfPools.toNumber());
+        for(let i = 0; i < randomisedOrder.length; i++) {
+            const pool = await this.getPoolInfoAndMatchById(randomisedOrder[i]);
             if(pool.pass) matchingPools.push(pool);
             if(matchingPools.length == this.desiredNumberOfPools) break;
         }
 
         return matchingPools;
+    }
+
+    /*
+    * @dev - randomise the pool ids so that we check them randomly rather than sequentially (this would give an advantage to earlier pools)
+    * @param count - the number of pools created
+    * @returns - an array of randomised values based on the pool count
+    * */
+    private static randomiseOrder(count: number): number[] {
+        const order = [];
+        while(order.length < count) {
+            const r = Math.floor(Math.random() * count) + 1;
+            if(order.indexOf(r) === -1) order.push(r);
+        }
+
+        return order;
     }
 
     /*
