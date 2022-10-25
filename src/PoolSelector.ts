@@ -175,14 +175,14 @@ export default class PoolSelector {
     * */
     private async getHasDuplicateValidators(targets: string[]): Promise<boolean> {
         if(this.checkForDuplicateValidators) {
-            const entities = {};
+            const entities: { [key: string]: boolean } = {};
             for(let t of targets) {
                 const identity = await this.api.query.identity.identityOf(t);
                 if(!identity.isEmpty) {
                     const { info } = JSON.parse(identity.toString());
-                    // @ts-ignore
-                    if(entities[info.display.raw]) return true;
-                    // @ts-ignore
+                    if(entities[info.display.raw]) {
+                        return true;
+                    }
                     entities[info.display.raw] = true;
                 } else {
                     return true; // can't verify if duplicate or not so we assume they are
