@@ -61,6 +61,7 @@ export default class PoolSelector {
         const { root, depositor, nominator, stateToggler } = poolInfo.roles;
         const pool: Pool = {
             pass: false,
+            era: this.era,
             poolId: poolId,
             poolStashAccountId: this.getPoolAccount(new BN(poolId), 0),
             poolRewardAccountId: this.getPoolAccount(new BN(poolId), 1),

@@ -2,6 +2,7 @@ import { BN } from "@polkadot/util";
 
 export type Pool = {
     pass: boolean; // whether the pool meets the selected criteria or not
+    era: number;
     poolId: number; // the id number of the pool (incremental order of creation)
     poolStashAccountId: string; // the pool's stashing account
     poolRewardAccountId: string; // the pool's reward account
@@ -30,6 +31,7 @@ export const emptyPoolObj: Pool = {
     memberCount: 0,
     nominator: "",
     pass: false,
+    era: 0,
     poolStashAccountId: "",
     poolRewardAccountId: "",
     poolId: 0,
