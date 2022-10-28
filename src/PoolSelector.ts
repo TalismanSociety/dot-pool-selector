@@ -99,10 +99,11 @@ export default class PoolSelector {
             return pool;
         }
 
-        const meetsMinSpotRequirement = this.maxMembers - poolInfo.memberCounter >= this.minSpots;
-        if(!meetsMinSpotRequirement) {
-            return pool;
-        }
+        // check not needed, since maxMembers == noop on Polkadot relaychain
+        // const meetsMinSpotRequirement = this.maxMembers - poolInfo.memberCounter >= this.minSpots;
+        // if(!meetsMinSpotRequirement) {
+        //     return pool;
+        // }
 
         if(this.checkValidators) {
             pool.pass = await this.getValidatorsMeetCriteriaByPoolId(pool.poolStashAccountId);

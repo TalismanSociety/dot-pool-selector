@@ -45,7 +45,7 @@ export const defaultOptions: Options = {
     checkRootVerified: false,
     checkValidators: false,
     era: 0,
-    maxMembers: 1024, // TODO place polkadot default here on launch (currently kusama)
+    maxMembers: -1, // maxMembers == noop on Polkadot relay chain
     minNumberOfValidators: 1,
     minSpots: 1,
     rootMinStake: new BN(0),
