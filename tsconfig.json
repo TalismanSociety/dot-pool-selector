@@ -1,4 +1,6 @@
 {
   "extends": "@tsconfig/node18-strictest-esm/tsconfig.json",
-  "exclude": ["**/*.test.ts"]
+  "compilerOptions": {
+    "noEmit": true
+  }
 }
