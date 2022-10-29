@@ -7,10 +7,8 @@ import { Pool, Options, defaultOptions, emptyPoolObj } from "./Types";
 export default class PoolSelector {
 
     readonly minStake: BN;
-    readonly minSpots: number;
     readonly desiredNumberOfPools: number;
     readonly api: ApiPromise;
-    readonly maxMembers: number;
     private era: number;
     readonly minNumberOfValidators: number;
     readonly validatorSelector;
@@ -29,13 +27,11 @@ export default class PoolSelector {
         options: Options = defaultOptions
     ) {
         this.minStake = options.rootMinStake.mul(new BN(10)).pow(new BN(api.registry.chainDecimals[0].toString()));
-        this.minSpots = options.minSpots;
         this.desiredNumberOfPools = options.numberOfPools;
         this.era = options.era;
         this.minNumberOfValidators = options.minNumberOfValidators;
         this.api = api;
         this.validatorSelector = validatorSelector;
-        this.maxMembers = options.maxMembers;
         this.checkRootVerified = options.checkRootVerified;
         this.checkForDuplicateValidators = options.checkForDuplicateValidators;
         this.checkValidators = options.checkValidators;
@@ -96,11 +92,6 @@ export default class PoolSelector {
 
         const meetsStakingRequirement = await this.getRootMeetsStakeRequirement(poolInfo.roles.root);
         if(!meetsStakingRequirement) {
-            return pool;
-        }
-
-        const meetsMinSpotRequirement = this.maxMembers - poolInfo.memberCounter >= this.minSpots;
-        if(!meetsMinSpotRequirement) {
             return pool;
         }
 
