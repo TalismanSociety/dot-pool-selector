@@ -48,7 +48,7 @@ describe("ValidatorSelector functionality", () => {
 
   it("should only get pools where the root is verified", async () => {
     const identity = await api.query.identity.identityOf(
-      pools[0].root.unwrap()
+      pools[0]!.root.unwrap()
     );
     expect(!identity.isEmpty, "Identity should not be empty");
   });
@@ -56,7 +56,7 @@ describe("ValidatorSelector functionality", () => {
   it("should only get pools where the root has skin in the game meeting the requirement set", async () => {
     const erasStakers = await api.query.staking.erasStakers(
       era,
-      pools[0].root.unwrap()
+      pools[0]!.root.unwrap()
     );
     const { own } = JSON.parse(erasStakers.toString());
     expect(own >= minStake, "Root should meet staking requirements");
@@ -64,7 +64,7 @@ describe("ValidatorSelector functionality", () => {
 
   it("should exclude a pool with validators that don't meet the requirements", async () => {
     const nominatorData = await api.query.staking.nominators(
-      pools[0].poolStashAccountId
+      pools[0]!.poolStashAccountId
     );
     const { targets } = JSON.parse(nominatorData.toString());
     for (let n of targets) {
@@ -76,7 +76,7 @@ describe("ValidatorSelector functionality", () => {
   });
 
   it("should only get pools that are in an open state", async () => {
-    const poolId = pools[0].poolId;
+    const poolId = pools[0]!.poolId;
     const bondedPoolsData = await api.query.nominationPools.bondedPools(poolId);
     const { state } = JSON.parse(bondedPoolsData.toString());
     expect(state == "Open", "Selector should only get open pools");
@@ -84,7 +84,7 @@ describe("ValidatorSelector functionality", () => {
 
   it("should only get pools with a minimum of the specified validators", async () => {
     const data = await api.query.staking.nominators(
-      pools[0].poolStashAccountId
+      pools[0]!.poolStashAccountId
     );
     const { targets } = JSON.parse(data.toString());
     expect(

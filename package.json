@@ -5,9 +5,10 @@
   "main": "build/index.js",
   "exports": "./build/index.js",
   "scripts": {
-    "build": "rm -rf build && tsc -m esnext --outDir build",
-    "test": "npm run build && mocha --exit --recursive --timeout=800000",
-    "format": "prettier --write src"
+    "build": "rm -rf build && tsc -p tsconfig.build.json --outDir build",
+    "test": "TS_NODE_PROJECT='tsconfig.test.json' mocha",
+    "format": "prettier --write src",
+    "prepack": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -28,10 +29,11 @@
     "@tsconfig/node18-strictest-esm": "^1.0.1",
     "@types/mocha": "^10.0.0",
     "browser-resolve": "^2.0.0",
-    "chai": "^4.3.4",
+    "chai": "^4.3.6",
     "esmify": "^2.1.1",
-    "mocha": "^9.1.1",
+    "mocha": "^10.1.0",
     "prettier": "^2.7.1",
+    "ts-node": "^10.9.1",
     "typescript": "^4.8.4"
   }
 }
