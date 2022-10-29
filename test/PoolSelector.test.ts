@@ -14,7 +14,6 @@ describe("ValidatorSelector functionality", () => {
     let pools: Pool[];
     let validatorSelector: any;
     const minStake = new BN(0);
-    const minSpots = 100;
     const minValidators = 2;
 
     before(async() => {
@@ -46,14 +45,6 @@ describe("ValidatorSelector functionality", () => {
     it("should only get pools where the root is verified", async() => {
         const identity = await api.query.identity.identityOf(pools[0].root);
         expect(!identity.isEmpty, "Identity should not be empty");
-    });
-
-    it("should only get pools with the min amount of available spots specified", async() => {
-        const data = await api.query.nominationPools.bondedPools(pools[0].poolId);
-        const poolInfo = JSON.parse(data.toString());
-        const meetsMinSpotRequirement = (1024 - poolInfo.memberCounter) >= minSpots;
-        expect(poolSelector.maxMembers > poolInfo.memberCounter, "should only find pools below the max member threshold");
-        expect(meetsMinSpotRequirement).to.be.equal(true, "should only find pools with the min amount of free spaces");
     });
 
     it("should only get pools where the root has skin in the game meeting the requirement set", async() => {
