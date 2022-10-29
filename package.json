@@ -2,9 +2,10 @@
   "name": "dot-pool-selector",
   "version": "1.0.0",
   "description": "Select the best nomination pools algorithmically",
-  "main": "index.js",
+  "main": "build/index.js",
+  "exports": "./build/index.js",
   "scripts": {
-    "build": "npx tsc",
+    "build": "rm -rf build && tsc -m esnext --outDir build",
     "test": "npm run build && mocha --exit --recursive --timeout=800000",
     "format": "prettier --write src"
   },
@@ -24,6 +25,7 @@
     "dot-validator-selector": "https://github.com/James-Sangalli/dot-validator-selector/archive/refs/tags/v1.0.4.tar.gz"
   },
   "devDependencies": {
+    "@tsconfig/node18-strictest-esm": "^1.0.1",
     "@types/mocha": "^10.0.0",
     "browser-resolve": "^2.0.0",
     "chai": "^4.3.4",
