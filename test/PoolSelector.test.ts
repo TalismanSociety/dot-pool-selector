@@ -17,9 +17,7 @@ describe("ValidatorSelector functionality", () => {
 
   before(async () => {
     api = await ApiPromise.create({
-      provider: new WsProvider(
-        "wss://kusama.api.onfinality.io/ws?apikey=09f0165a-7632-408b-ba81-08f964b607f7"
-      ),
+      provider: new WsProvider("wss://kusama-rpc.polkadot.io"),
     });
     validatorSelector = new ValidatorSelector(
       api,
