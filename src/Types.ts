@@ -1,18 +1,19 @@
+import type { Struct } from "@polkadot/types-codec";
+import type { AccountId32 } from "@polkadot/types/interfaces";
+import type {
+  PalletNominationPoolsBondedPoolInner,
+  PalletNominationPoolsPoolRoles,
+} from "@polkadot/types/lookup";
 import { BN } from "@polkadot/util";
 
-export type Pool = {
-  pass: boolean; // whether the pool meets the selected criteria or not
-  era: number;
-  poolId: number; // the id number of the pool (incremental order of creation)
-  poolStashAccountId: string; // the pool's stashing account
-  poolRewardAccountId: string; // the pool's reward account
-  depositor: string; // the pool's depositor account
-  root: string; // the pool's root account
-  nominator: string; // the pool's nominator account
-  stateToggler: string; // the pool's state toggler account
-  state: string; // the pool's state e.g. open
-  memberCount: number; // the number of accounts in the pool
-};
+export type Pool = Omit<PalletNominationPoolsPoolRoles, keyof Struct> &
+  Pick<PalletNominationPoolsBondedPoolInner, "state" | "memberCounter"> & {
+    era: number;
+    pass: boolean; // whether the pool meets the selected criteria or not
+    poolId: number; // the id number of the pool (incremental order of creation)
+    poolStashAccountId: AccountId32; // the pool's stashing account
+    poolRewardAccountId: AccountId32; // the pool's reward account
+  };
 
 export type Options = {
   rootMinStake: BN; // the desired minimum amount of stake that the root account should hold
@@ -22,20 +23,6 @@ export type Options = {
   checkRootVerified: boolean; // check if the root is verified (ignore if false)
   checkForDuplicateValidators: boolean; // check if the pool has duplicate validators (ignore if false)
   checkValidators: boolean; // check that validators meet the criteria set by the ValidatorSelector (ignore if false)
-};
-
-export const emptyPoolObj: Pool = {
-  depositor: "",
-  memberCount: 0,
-  nominator: "",
-  pass: false,
-  era: 0,
-  poolStashAccountId: "",
-  poolRewardAccountId: "",
-  poolId: 0,
-  root: "",
-  state: "",
-  stateToggler: "",
 };
 
 export const defaultOptions: Options = {

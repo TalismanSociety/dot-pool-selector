@@ -1,8 +1,11 @@
-import { ApiPromise } from "@polkadot/api";
+import type { ApiPromise } from "@polkadot/api";
 import "@polkadot/api-augment";
+import type { Option, Vec } from "@polkadot/types-codec";
+import type { AccountId32 } from "@polkadot/types/interfaces";
+import type { PalletNominationPoolsBondedPoolInner } from "@polkadot/types/lookup";
 import { BN, bnToU8a, stringToU8a, u8aConcat } from "@polkadot/util";
 import PromiseExtra from "./PromiseExtra";
-import { defaultOptions, emptyPoolObj, Options, Pool } from "./Types";
+import { defaultOptions, Options, Pool } from "./Types";
 
 export default class PoolSelector {
   readonly minStake: BN;
@@ -28,7 +31,7 @@ export default class PoolSelector {
   ) {
     this.minStake = options.rootMinStake
       .mul(new BN(10))
-      .pow(new BN(api.registry.chainDecimals[0].toString()));
+      .pow(new BN(api.registry.chainDecimals[0]!));
     this.desiredNumberOfPools = options.numberOfPools;
     this.era = options.era;
     this.minNumberOfValidators = options.minNumberOfValidators;
@@ -40,10 +43,9 @@ export default class PoolSelector {
 
   private async init() {
     if (this.era === 0) {
-      const { index } = JSON.parse(
-        (await this.api.query.staking.activeEra()).toString()
-      );
-      this.era = index;
+      this.era = (await this.api.query.staking.activeEra())
+        .unwrapOrDefault()
+        .index.toNumber();
     }
   }
 
@@ -57,8 +59,8 @@ export default class PoolSelector {
       this.api.query.nominationPools.bondedPools(poolId),
       this.init(),
     ]);
-    if (data.isNone) return emptyPoolObj; // this can happen if a pool was removed as the index remains
-    const poolInfo = JSON.parse(data.toString());
+
+    const poolInfo = data.unwrapOrDefault();
     const { root, depositor, nominator, stateToggler } = poolInfo.roles;
     const pool: Pool = {
       pass: false,
@@ -71,8 +73,10 @@ export default class PoolSelector {
       nominator: nominator,
       stateToggler: stateToggler,
       state: poolInfo.state,
-      memberCount: poolInfo.memberCounter,
+      memberCounter: poolInfo.memberCounter,
     };
+
+    if (data.isNone) return pool; // this can happen if a pool was removed as the index remains
 
     return this.getCheckedPool(pool, poolInfo);
   }
@@ -83,8 +87,11 @@ export default class PoolSelector {
    * @param poolInfo - the pool information returned from the bondedPools call
    * @returns - a pool object containing info about the pool and whether it matches the criteria or not
    * */
-  private async getCheckedPool(pool: Pool, poolInfo: any): Promise<Pool> {
-    if (poolInfo.state != "Open") {
+  private async getCheckedPool(
+    pool: Pool,
+    poolInfo: PalletNominationPoolsBondedPoolInner
+  ): Promise<Pool> {
+    if (poolInfo.state.type !== "Open") {
       return pool;
     }
 
@@ -105,23 +112,21 @@ export default class PoolSelector {
   /*
    * @dev see https://github.com/polkadot-js/apps/blob/v0.121.1/packages/page-staking/src/usePoolAccounts.ts#L17
    * */
-  private getPoolAccount(poolId: BN, index: number): string {
+  private getPoolAccount(poolId: BN, index: number) {
     const palletId = this.api.consts.nominationPools.palletId.toU8a();
     const EMPTY_H256 = new Uint8Array(32);
     const MOD_PREFIX = stringToU8a("modl");
     const U32_OPTS = { bitLength: 32, isLe: true };
-    return this.api.registry
-      .createType(
-        "AccountId32",
-        u8aConcat(
-          MOD_PREFIX,
-          palletId,
-          new Uint8Array([index]),
-          bnToU8a(poolId, U32_OPTS),
-          EMPTY_H256
-        )
+    return this.api.registry.createType(
+      "AccountId32",
+      u8aConcat(
+        MOD_PREFIX,
+        palletId,
+        new Uint8Array([index]),
+        bnToU8a(poolId, U32_OPTS),
+        EMPTY_H256
       )
-      .toString();
+    );
   }
 
   /*
@@ -130,7 +135,7 @@ export default class PoolSelector {
    * @returns - true if it meets the criteria else false
    * */
   private async getValidatorsMeetCriteriaByPoolId(
-    poolAccountId: string
+    poolAccountId: AccountId32
   ): Promise<boolean> {
     const validatorsSelected = await this.api.query.staking.nominators(
       poolAccountId
@@ -140,7 +145,7 @@ export default class PoolSelector {
       return false;
     }
 
-    const { targets } = JSON.parse(validatorsSelected.toString());
+    const targets = validatorsSelected.unwrap().targets;
 
     if (targets.length < this.minNumberOfValidators) {
       return false;
@@ -160,10 +165,12 @@ export default class PoolSelector {
    * @param targets - the validator addresses
    * @returns - true if meets criteria else false
    * */
-  private getValidatorsMeetCriteria(targets: string[]): Promise<boolean> {
+  private getValidatorsMeetCriteria(
+    targets: Vec<AccountId32>
+  ): Promise<boolean> {
     return PromiseExtra.every(
       targets.map((target) =>
-        this.validatorSelector.getMeetsCriteriaByAccountId(target)
+        this.validatorSelector.getMeetsCriteriaByAccountId(target.toHuman())
       ),
       (meetsCriteria) => meetsCriteria
     );
@@ -175,7 +182,9 @@ export default class PoolSelector {
    * @param targets - the validator addresses
    * @returns - true if duplicates are present, else false
    * */
-  private getHasDuplicateValidators(targets: string[]): Promise<boolean> {
+  private getHasDuplicateValidators(
+    targets: Vec<AccountId32>
+  ): Promise<boolean> {
     if (!this.checkForDuplicateValidators) return Promise.resolve(false);
 
     const entities: { [key: string]: boolean } = {};
@@ -187,6 +196,8 @@ export default class PoolSelector {
         if (entities[target.unwrap().info.display.toString()]) return true;
 
         entities[target.unwrap().info.display.toString()] = true;
+
+        return false;
       }
     );
   }
@@ -214,8 +225,10 @@ export default class PoolSelector {
    * @dev - check if the root user has a verified identity
    * @returns - true if it does, else false
    * */
-  private async getIsRootVerified(root: string): Promise<boolean> {
-    const identity = await this.api.query.identity.identityOf(root);
+  private async getIsRootVerified(root: Option<AccountId32>): Promise<boolean> {
+    if (root.isNone) return false;
+
+    const identity = await this.api.query.identity.identityOf(root.unwrap());
 
     return !identity.isNone;
   }
@@ -225,13 +238,16 @@ export default class PoolSelector {
    * @param - the root address
    * @returns - true if it has, else false
    * */
-  private async getRootMeetsStakeRequirement(root: string): Promise<boolean> {
+  private async getRootMeetsStakeRequirement(
+    root: Option<AccountId32>
+  ): Promise<boolean> {
+    if (root.isNone) return false;
+
     const erasStakers = await this.api.query.staking.erasStakers(
       this.era,
-      root
+      root.unwrap()
     );
-    const { own } = JSON.parse(erasStakers.toString());
 
-    return own >= this.minStake;
+    return erasStakers.own.unwrap().gte(this.minStake);
   }
 }
