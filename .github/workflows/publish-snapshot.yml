@@ -1,0 +1,25 @@
+name: Publish Snapshot
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      - name: Set snapshot version
+        run: npm version 0.0.0-snapshot.$(git rev-parse --short HEAD) --git-tag-version=false
+
+      - run: npm publish --tag snapshot
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
