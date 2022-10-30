@@ -20,6 +20,6 @@ jobs:
       - name: Set snapshot version
         run: npm version 0.0.0-pr${{ github.event.pull_request.number }}.$(git rev-parse --short HEAD) --git-tag-version=false
 
-      - run: npm publish --tag pr${{ github.event.pull_request.number }}
+      - run: npm publish --access public --tag pr${{ github.event.pull_request.number }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
