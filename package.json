@@ -1,5 +1,5 @@
 {
-  "name": "dot-pool-selector",
+  "name": "@talismn/dot-pool-selector",
   "version": "1.0.0",
   "description": "Select the best nomination pools algorithmically",
   "main": "build/index.js",
@@ -12,14 +12,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/James-Sangalli/dot-pool-selector.git"
+    "url": "git+https://github.com/TalismanSociety/dot-pool-selector.git"
   },
   "author": "",
   "license": "",
   "bugs": {
-    "url": "https://github.com/James-Sangalli/dot-pool-selector/issues"
+    "url": "https://github.com/TalismanSociety/dot-pool-selector/issues"
   },
-  "homepage": "https://github.com/James-Sangalli/dot-pool-selector#readme",
+  "homepage": "https://github.com/TalismanSociety/dot-pool-selector#readme",
   "dependencies": {
     "@polkadot/api": "^9.5.2",
     "dot-validator-selector": "https://github.com/James-Sangalli/dot-validator-selector/archive/refs/tags/v1.0.4.tar.gz"
