@@ -1,3 +1,12 @@
+/**
+ * TODO: remove catch block, this is a workaround
+ * since promise doesn't have built in cancellation
+ * hence even after early termination, subsequent promises will still execute
+ * this is only an issue with Polkadot RPC unit testing
+ * because connection get tear down after all tests
+ * and when rpc call that we don't care about anymore still get execute
+ * Error("cannot call send() while not connected") will be thrown
+ */
 export default class PromiseExtra<T> extends Promise<T> {
   static filter<T>(
     values: Iterable<Promise<T>>,
@@ -40,10 +49,14 @@ export default class PromiseExtra<T> extends Promise<T> {
   ): Promise<boolean> {
     return new Promise(async (resolve) => {
       const promises = Array.from(values, async (promise, index) => {
-        if (predicate.bind(thisArg)(await promise, index, values)) {
-          resolve(true);
-          return true;
-        } else {
+        try {
+          if (predicate.bind(thisArg)(await promise, index, values)) {
+            resolve(true);
+            return true;
+          } else {
+            return false;
+          }
+        } catch {
           return false;
         }
       });
@@ -65,11 +78,16 @@ export default class PromiseExtra<T> extends Promise<T> {
   ): Promise<boolean> {
     return new Promise(async (resolve) => {
       const promises = Array.from(values, async (promise, index) => {
-        if (!predicate.bind(thisArg)(await promise, index, values)) {
+        try {
+          if (!predicate.bind(thisArg)(await promise, index, values)) {
+            resolve(false);
+            return false;
+          } else {
+            return true;
+          }
+        } catch {
           resolve(false);
           return false;
-        } else {
-          return true;
         }
       });
 
