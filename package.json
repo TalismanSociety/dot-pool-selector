@@ -21,14 +21,17 @@
   },
   "homepage": "https://github.com/TalismanSociety/dot-pool-selector#readme",
   "dependencies": {
-    "@polkadot/api": "^9.5.2",
     "dot-validator-selector": "https://github.com/James-Sangalli/dot-validator-selector/archive/refs/tags/v1.0.4.tar.gz"
   },
   "devDependencies": {
+    "@polkadot/api": "^9.5.2",
     "@polkadot/api-augment": "^9.5.2",
     "@tsconfig/node18-strictest-esm": "^1.0.1",
     "prettier": "^2.7.1",
     "typescript": "^4.8.4",
     "vitest": "^0.24.3"
+  },
+  "peerDependencies": {
+    "@polkadot/api": "9.x"
   }
 }
