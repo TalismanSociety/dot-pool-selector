@@ -2,10 +2,11 @@
   "name": "@talismn/dot-pool-selector",
   "version": "1.0.0",
   "description": "Select the best nomination pools algorithmically",
+  "type": "module",
   "main": "build/index.js",
   "exports": "./build/index.js",
   "scripts": {
-    "build": "rm -rf build && tsc -p tsconfig.build.json --outDir build",
+    "build": "rm -rf build && tsc --outDir build",
     "test": "vitest",
     "format": "prettier --write src",
     "prepack": "npm run build"
@@ -24,14 +25,14 @@
     "dot-validator-selector": "https://github.com/James-Sangalli/dot-validator-selector/archive/refs/tags/v1.0.4.tar.gz"
   },
   "devDependencies": {
-    "@polkadot/api": "^9.5.2",
-    "@polkadot/api-augment": "^9.5.2",
-    "@tsconfig/node18-strictest-esm": "^1.0.1",
+    "@polkadot/api": "^10.7.1",
+    "@polkadot/api-augment": "^10.7.1",
+    "@tsconfig/esm": "^1.0.3",
     "prettier": "^2.7.1",
-    "typescript": "^4.8.4",
-    "vitest": "^0.24.3"
+    "typescript": "^5.0.4",
+    "vitest": "^0.31.0"
   },
   "peerDependencies": {
-    "@polkadot/api": "9.x"
+    "@polkadot/api": "9.x || 10.x"
   }
 }
