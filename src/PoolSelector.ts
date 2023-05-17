@@ -4,8 +4,8 @@ import type { Option, Vec } from "@polkadot/types-codec";
 import type { AccountId32 } from "@polkadot/types/interfaces";
 import type { PalletNominationPoolsBondedPoolInner } from "@polkadot/types/lookup";
 import { BN, bnToU8a, stringToU8a, u8aConcat } from "@polkadot/util";
-import PromiseExtra from "./PromiseExtra";
-import { defaultOptions, Options, Pool } from "./Types";
+import PromiseExtra from "./PromiseExtra.js";
+import { defaultOptions, type Options, type Pool } from "./Types.js";
 
 export default class PoolSelector {
   readonly minStake: BN;
@@ -61,7 +61,7 @@ export default class PoolSelector {
     ]);
 
     const poolInfo = data.unwrapOrDefault();
-    const { root, depositor, nominator, stateToggler } = poolInfo.roles;
+    const { root, depositor, nominator, bouncer } = poolInfo.roles;
     const pool: Pool = {
       pass: false,
       era: this.era,
@@ -71,7 +71,7 @@ export default class PoolSelector {
       depositor: depositor,
       root: root,
       nominator: nominator,
-      stateToggler: stateToggler,
+      bouncer: bouncer,
       state: poolInfo.state,
       memberCounter: poolInfo.memberCounter,
     };

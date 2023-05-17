@@ -1,10 +1,11 @@
 import type { ApiPromise } from "@polkadot/api";
+// @ts-expect-error
+import BaseValidatorSelector from "dot-validator-selector/util/ValidatorSelector";
+export * from "./PoolSelector.js";
+export { default } from "./PoolSelector.js";
+export { defaultOptions } from "./Types.js";
 
-export * from "./PoolSelector";
-export { default } from "./PoolSelector";
-export { defaultOptions } from "./Types";
-
-export interface ValidatorSelector {
+export interface IValidatorSelector {
   new (
     api: ApiPromise,
     maxCommission?: number,
@@ -12,9 +13,9 @@ export interface ValidatorSelector {
     minStaking?: number,
     era?: number,
     humanReadable?: boolean
-  ): ValidatorSelector;
+  ): IValidatorSelector;
 
   getMeetsCriteriaByAccountId: (accountId: string) => Promise<boolean>;
 }
 
-export const ValidatorSelector: ValidatorSelector = require("dot-validator-selector/util/ValidatorSelector.js");
+export const ValidatorSelector: IValidatorSelector = BaseValidatorSelector;
